@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1">
+  <title>trisapp</title>
+
+  <meta name="theme-color" content="#0a0a0e">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="trisapp">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+
+  <link rel="stylesheet" href="style.css">
+  <script src="register-sw.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header id="status">
+      <div class="stat"><span class="label">SCORE</span><span id="score">0</span></div>
+      <div class="stat"><span class="label">LEVEL</span><span id="level">1</span></div>
+      <div class="stat"><span class="label">LINES</span><span id="lines">0</span></div>
+      <button id="menu-btn" type="button" aria-label="Menu">☰</button>
+    </header>
+
+    <main id="play">
+      <aside id="side-left">
+        <div class="panel">
+          <div class="panel-label">HOLD</div>
+          <canvas id="hold" width="96" height="96"></canvas>
+        </div>
+      </aside>
+
+      <div id="board-wrap">
+        <canvas id="board"></canvas>
+      </div>
+
+      <aside id="side-right">
+        <div class="panel">
+          <div class="panel-label">NEXT</div>
+          <canvas id="next" width="96" height="288"></canvas>
+        </div>
+      </aside>
+    </main>
+
+    <footer id="controls">
+      <div class="dpad">
+        <button class="btn" type="button" data-key="left"  aria-label="Left">◀</button>
+        <button class="btn" type="button" data-key="down"  aria-label="Soft drop">▼</button>
+        <button class="btn" type="button" data-key="right" aria-label="Right">▶</button>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" data-key="rotate-ccw" aria-label="Rotate left">↺</button>
+        <button class="btn" type="button" data-key="rotate-cw"  aria-label="Rotate right">↻</button>
+        <button class="btn small" type="button" data-key="hold" aria-label="Hold">HOLD</button>
+        <button class="btn"       type="button" data-key="hard-drop" aria-label="Hard drop">⤓</button>
+      </div>
+    </footer>
+
+    <div id="overlay" class="hidden" aria-hidden="true">
+      <div class="overlay-card">
+        <h2 id="overlay-title">trisapp</h2>
+        <p id="overlay-message">Stack the falling blocks. Clear lines. Survive.</p>
+        <div class="overlay-stats hidden" id="overlay-stats">
+          <div><span class="label">SCORE</span><span id="final-score">0</span></div>
+          <div><span class="label">LINES</span><span id="final-lines">0</span></div>
+          <div><span class="label">LEVEL</span><span id="final-level">1</span></div>
+        </div>
+        <div class="settings">
+          <label><input type="checkbox" id="sound-toggle" checked> Sound</label>
+          <label><input type="checkbox" id="vibrate-toggle" checked> Vibration</label>
+        </div>
+        <div class="hint">
+          <kbd>←</kbd><kbd>→</kbd> move &nbsp; <kbd>↓</kbd> soft drop &nbsp; <kbd>Space</kbd> hard drop<br>
+          <kbd>Z</kbd> rotate left &nbsp; <kbd>X</kbd> rotate right &nbsp; <kbd>C</kbd> hold &nbsp; <kbd>P</kbd> pause
+        </div>
+        <button id="overlay-action" type="button">START</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js" defer></script>
+</body>
+</html>

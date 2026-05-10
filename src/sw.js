@@ -1,25 +1,22 @@
-// Apotris PWA service worker.
-//
-// Strategy:
-//   - On install, fetch precache.json and cache every listed asset.
-//   - On fetch, serve cached responses first; fall back to the network and
-//     cache successful GETs for next time. This keeps it working with no
-//     connection at all once the install round trip has finished.
+// trisapp service worker — cache-first offline shell.
+// No cross-origin isolation gymnastics needed: this build doesn't use
+// SharedArrayBuffer or pthreads, so plain caching is enough.
 
-const CACHE = 'apotris-__CACHE_VERSION__';
+const CACHE = 'trisapp-__CACHE_VERSION__';
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    const list = await fetch('precache.json', { cache: 'no-store' }).then(r => r.json());
-    // Always include the entry doc and manifest even if precache.json missed them.
-    const urls = Array.from(new Set([...list, '.', 'manifest.webmanifest']));
-    // Cache one-by-one so a single 404 doesn't abort the whole install.
+    let list = [];
+    try {
+      list = await fetch('precache.json', { cache: 'no-store' }).then((r) => r.json());
+    } catch (_) {}
+    const urls = Array.from(new Set([...list, '.', 'index.html', 'manifest.webmanifest']));
     await Promise.all(urls.map(async (url) => {
       try {
         const res = await fetch(url, { cache: 'no-store' });
         if (res.ok) await cache.put(url, res);
-      } catch (_) { /* offline-first: best-effort precache */ }
+      } catch (_) {}
     }));
     self.skipWaiting();
   })());
@@ -28,7 +25,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -36,63 +33,33 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
-
-  // Range requests (used by some emulators streaming the ROM) need to bypass
-  // the cache — Cache API doesn't honor Range headers.
-  if (req.headers.has('range')) return;
-
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-
-  // COOP/COEP only need to be on the document (navigation) response for the
-  // page to become cross-origin isolated. Same-origin resources don't need
-  // CORP. Re-wrapping a multi-MB binary stream in new Response(body, ...)
-  // has been observed to stall in iOS standalone PWA, so non-navigation
-  // requests pass through cache/network untouched.
-  const isNav = req.mode === 'navigate';
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(req, { ignoreSearch: true });
     if (cached) {
-      event.waitUntil(refresh(cache, req));
-      return isNav ? withCOIHeaders(cached) : cached;
+      // background revalidate
+      event.waitUntil((async () => {
+        try {
+          const fresh = await fetch(req);
+          if (fresh.ok) await cache.put(req, fresh);
+        } catch (_) {}
+      })());
+      return cached;
     }
     try {
       const res = await fetch(req);
       if (res.ok) cache.put(req, res.clone());
-      return isNav ? withCOIHeaders(res) : res;
+      return res;
     } catch (err) {
-      const shell = await cache.match('.') || await cache.match('index.html');
-      if (shell && isNav) return withCOIHeaders(shell);
+      // offline fallback: serve the SPA shell for any navigation
+      if (req.mode === 'navigate') {
+        const shell = await cache.match('index.html') || await cache.match('.');
+        if (shell) return shell;
+      }
       throw err;
     }
   })());
 });
-
-async function refresh(cache, req) {
-  try {
-    const res = await fetch(req);
-    if (res.ok) await cache.put(req, res);
-  } catch (_) { /* fine, we're offline */ }
-}
-
-// Apotris is built with Emscripten pthreads, which need SharedArrayBuffer,
-// which needs the page to be cross-origin isolated. GitHub Pages doesn't
-// send COOP/COEP, so we synthesize them here on every same-origin response.
-// Without this, the loader hangs forever at "Preparing... (N-1/N)" because
-// the pthread worker spawn never completes.
-function withCOIHeaders(response) {
-  if (!response || response.type === 'opaque' || response.type === 'opaqueredirect') {
-    return response;
-  }
-  const headers = new Headers(response.headers);
-  headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
-  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-  headers.set('Cross-Origin-Resource-Policy', 'same-origin');
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}

@@ -1,7 +1,5 @@
 name: Deploy PWA to GitHub Pages
 
-# The mirror step needs network access to akouzoukos.com (or a release feed).
-# It runs on every push to the default branch and on manual dispatch.
 on:
   push:
     branches: [main]
@@ -24,12 +22,6 @@ jobs:
 
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-
-      - name: Install wget
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq wget
-
-      - name: Mirror site
-        run: ./scripts/mirror.sh
 
       - name: Build PWA
         run: ./scripts/build.sh
