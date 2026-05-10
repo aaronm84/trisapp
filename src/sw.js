@@ -44,20 +44,27 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  // COOP/COEP only need to be on the document (navigation) response for the
+  // page to become cross-origin isolated. Same-origin resources don't need
+  // CORP. Re-wrapping a multi-MB binary stream in new Response(body, ...)
+  // has been observed to stall in iOS standalone PWA, so non-navigation
+  // requests pass through cache/network untouched.
+  const isNav = req.mode === 'navigate';
+
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(req, { ignoreSearch: true });
     if (cached) {
       event.waitUntil(refresh(cache, req));
-      return withCOIHeaders(cached);
+      return isNav ? withCOIHeaders(cached) : cached;
     }
     try {
       const res = await fetch(req);
       if (res.ok) cache.put(req, res.clone());
-      return withCOIHeaders(res);
+      return isNav ? withCOIHeaders(res) : res;
     } catch (err) {
       const shell = await cache.match('.') || await cache.match('index.html');
-      if (shell && req.mode === 'navigate') return withCOIHeaders(shell);
+      if (shell && isNav) return withCOIHeaders(shell);
       throw err;
     }
   })());
