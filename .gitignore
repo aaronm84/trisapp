@@ -1,0 +1,4 @@
+mirror/
+dist/
+*.bak
+.DS_Store
