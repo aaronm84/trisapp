@@ -48,18 +48,16 @@ self.addEventListener('fetch', (event) => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(req, { ignoreSearch: true });
     if (cached) {
-      // Revalidate in the background.
       event.waitUntil(refresh(cache, req));
-      return cached;
+      return withCOIHeaders(cached);
     }
     try {
       const res = await fetch(req);
       if (res.ok) cache.put(req, res.clone());
-      return res;
+      return withCOIHeaders(res);
     } catch (err) {
-      // Last-ditch fallback: the SPA shell.
       const shell = await cache.match('.') || await cache.match('index.html');
-      if (shell && req.mode === 'navigate') return shell;
+      if (shell && req.mode === 'navigate') return withCOIHeaders(shell);
       throw err;
     }
   })());
@@ -70,4 +68,24 @@ async function refresh(cache, req) {
     const res = await fetch(req);
     if (res.ok) await cache.put(req, res);
   } catch (_) { /* fine, we're offline */ }
+}
+
+// Apotris is built with Emscripten pthreads, which need SharedArrayBuffer,
+// which needs the page to be cross-origin isolated. GitHub Pages doesn't
+// send COOP/COEP, so we synthesize them here on every same-origin response.
+// Without this, the loader hangs forever at "Preparing... (N-1/N)" because
+// the pthread worker spawn never completes.
+function withCOIHeaders(response) {
+  if (!response || response.type === 'opaque' || response.type === 'opaqueredirect') {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }

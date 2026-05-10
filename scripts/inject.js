@@ -52,12 +52,17 @@ const HEAD_TAGS = `
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1">
 
     <link rel="stylesheet" href="${prefix}controls.css">
+
+    <!-- Register-SW must run before Apotris.js so that on first visit it can
+         install the SW and trigger a reload. After reload the SW intercepts
+         requests and stamps COOP/COEP, making the page cross-origin isolated
+         (required by Emscripten pthreads). NOT deferred, NOT async. -->
+    <script src="${prefix}register-sw.js"></script>
 `;
 
 const BODY_TAGS = `
     <div id="pwa-controls" hidden></div>
     <script src="${prefix}controls.js" defer></script>
-    <script src="${prefix}register-sw.js" defer></script>
 `;
 
 if (!html.includes('manifest.webmanifest')) {
