@@ -50,14 +50,25 @@
   const attempts = parseInt(url.searchParams.get('coi') || '0', 10) || 0;
   const MAX_ATTEMPTS = 2;
 
-  log(`url=${url.pathname}${url.search} COI=${window.crossOriginIsolated} ctrl=${!!navigator.serviceWorker.controller} attempts=${attempts}`);
+  const hasSAB = typeof SharedArrayBuffer !== 'undefined';
+  log(`url=${url.pathname}${url.search} COI=${window.crossOriginIsolated} SAB=${hasSAB} ctrl=${!!navigator.serviceWorker.controller} attempts=${attempts}`);
 
   if (window.crossOriginIsolated) {
     if (url.searchParams.has('coi')) {
       url.searchParams.delete('coi');
       history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
-    log('isolated, registering for caching');
+    // iOS standalone PWAs occasionally report crossOriginIsolated=true while
+    // SharedArrayBuffer is still undefined — a delayed-engagement bug. One
+    // hard reload through the SW usually engages SAB. Guard with sessionStorage
+    // (fresh per PWA launch) so we don't loop.
+    if (!hasSAB && !sessionStorage.getItem('trisapp-sab-prime')) {
+      sessionStorage.setItem('trisapp-sab-prime', '1');
+      log('COI but no SAB — priming reload');
+      location.reload();
+      return;
+    }
+    log('isolated' + (hasSAB ? ' + SAB' : ' but NO SAB') + ', registering for caching');
     navigator.serviceWorker.register(swUrl, { scope }).catch((e) => log('reg fail: ' + e));
     return;
   }
