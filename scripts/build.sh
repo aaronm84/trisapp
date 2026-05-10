@@ -28,23 +28,43 @@ cp -R "$MIRROR"/. "$DIST"/
 echo "[2/5] Copying PWA shell from src/"
 cp -R "$SRC"/. "$DIST"/
 
-# Locate the entry HTML. wget usually saves it as index.html, but some sites
-# end up with apotris.html or similar.
-INDEX=""
-for candidate in index.html apotris.html index.htm; do
+# The entry HTML for the PWA is /play/index.html (the wasm build).
+# We keep / available too (the marketing page) but inject PWA tags into
+# both so either is install-ready. We also write a top-level index.html
+# that redirects to play/, so adding the root URL to the home screen
+# still launches the game.
+ENTRIES=()
+for candidate in play/index.html play/apotris.html index.html apotris.html; do
   if [ -f "$DIST/$candidate" ]; then
-    INDEX="$DIST/$candidate"
-    break
+    ENTRIES+=("$DIST/$candidate")
   fi
 done
-if [ -z "$INDEX" ]; then
-  echo "ERROR: couldn't find an index HTML in $DIST" >&2
+if [ "${#ENTRIES[@]}" -eq 0 ]; then
+  echo "ERROR: couldn't find any entry HTML under $DIST" >&2
   exit 1
 fi
-echo "    entry = $INDEX"
 
-echo "[3/5] Injecting PWA tags into $INDEX"
-node "$ROOT/scripts/inject.js" "$INDEX"
+echo "[3/5] Injecting PWA tags into ${#ENTRIES[@]} entry file(s)"
+for entry in "${ENTRIES[@]}"; do
+  echo "  -> $entry"
+  node "$ROOT/scripts/inject.js" "$entry"
+done
+
+# If the only real entry is play/index.html, make root index.html a redirect
+# so the home-screen icon (which uses start_url=".") opens the game.
+if [ -f "$DIST/play/index.html" ] && ! grep -q '<canvas' "$DIST/index.html" 2>/dev/null; then
+  cat > "$DIST/index.html" <<'HTML'
+<!doctype html>
+<meta charset="utf-8">
+<title>Apotris</title>
+<meta http-equiv="refresh" content="0; url=play/">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Apotris">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<script>location.replace('play/');</script>
+HTML
+fi
 
 echo "[4/5] Stamping service worker with cache version"
 STAMP="$(date +%Y%m%d%H%M%S)"

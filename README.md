@@ -6,12 +6,13 @@ screen and play on the subway with no App Store involved.
 
 ## What this repo is (and isn't)
 
-It does **not** contain the Apotris game. Apotris is a GBA homebrew; the source
-lives at [gitea.com/akouzoukos/apotris](https://gitea.com/akouzoukos/apotris)
-(the GitHub copy was DMCA'd by Tetris Co., a community mirror is at
-[github.com/gb-archive/apotris](https://github.com/gb-archive/apotris)). The
-`akouzoukos.com/apotris` page runs the compiled `.gba` ROM through an in-browser
-GBA emulator.
+It does **not** contain the Apotris game. Apotris started as a GBA homebrew but
+since v4.0 has native ports (Win/Mac/Linux/Switch/Web). The web build at
+`akouzoukos.com/apotris/play/` is the **native port compiled to wasm via
+Emscripten + SDL2** — not an emulator running a GBA ROM. The source lives at
+[gitea.com/akouzoukos/apotris](https://gitea.com/akouzoukos/apotris) (the
+GitHub copy was DMCA'd by Tetris Co., community mirror at
+[github.com/gb-archive/apotris](https://github.com/gb-archive/apotris)).
 
 This repo contains:
 
@@ -39,10 +40,20 @@ After the first launch online, everything is cached and works offline.
 
 - **Icon:** replace `src/icons/*.png` with your own (or rerun
   `python3 scripts/make-icons.py` to regenerate placeholders).
-- **Key map:** if the bundled emulator uses a different keyboard mapping,
-  edit `KEYS` in `src/controls.js`.
+- **Key map:** the overlay synthesizes keyboard events. The native port reads
+  these via SDL2; if a button feels wrong, edit `KEYS` in `src/controls.js`
+  and/or remap inside the in-game controls menu (it's customizable).
 - **Hide overlay:** tap the `×` in the top-right corner of the running app.
   State persists in localStorage.
+
+## A note on touch input
+
+Apotris's official FAQ says the web port "does not yet support mobile
+platforms." The overlay in `src/controls.js` works around this by synthesizing
+`KeyboardEvent`s on `document`, `window`, and the canvas — SDL2's emscripten
+layer routes those into `SDL_KEYDOWN`/`SDL_KEYUP`, which the game does
+process. If a future Apotris release adds real touch input, the overlay can
+just be removed.
 
 ## Hosting note (DMCA)
 

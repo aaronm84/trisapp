@@ -43,17 +43,25 @@
     <button class="toggle" type="button" aria-label="Hide controls">×</button>
   `;
 
+  // SDL2's emscripten port attaches its keydown/keyup listeners to document
+  // by default, but can be configured to use window or the canvas. Fire on
+  // all three so it picks up regardless of how the build was configured.
+  const targets = () => {
+    const list = [document, window];
+    const canvas = document.querySelector('canvas');
+    if (canvas) list.push(canvas);
+    return list;
+  };
   const fire = (type, name) => {
     const k = KEYS[name];
     if (!k) return;
-    const target = document.activeElement && document.activeElement.tagName === 'CANVAS'
-      ? document.activeElement
-      : window;
-    const ev = new KeyboardEvent(type, {
-      key: k.key, code: k.code, keyCode: k.keyCode, which: k.keyCode,
-      bubbles: true, cancelable: true,
-    });
-    target.dispatchEvent(ev);
+    for (const target of targets()) {
+      const ev = new KeyboardEvent(type, {
+        key: k.key, code: k.code, keyCode: k.keyCode, which: k.keyCode,
+        bubbles: true, cancelable: true,
+      });
+      target.dispatchEvent(ev);
+    }
   };
 
   const bind = (el) => {
