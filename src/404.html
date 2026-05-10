@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Apotris</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Apotris">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#101015">
+  <link rel="manifest" href="/trisapp/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/trisapp/icons/icon-180.png">
+  <style>
+    html, body { margin: 0; padding: 0; background: #101015; color: #f8f8f2;
+      font-family: -apple-system, system-ui, sans-serif; height: 100%; }
+    main { display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; padding: 2em;
+      box-sizing: border-box; text-align: center; }
+    h1 { margin: 0 0 .5em; font-size: 2em; }
+    p { margin: .5em 0; opacity: .85; }
+    code { font-family: ui-monospace, monospace; opacity: .55;
+      word-break: break-all; font-size: .85em; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Apotris</h1>
+    <p>Loading…</p>
+    <p><code id="from"></code></p>
+  </main>
+  <script>
+    // Safety net: GitHub Pages serves this for any 404 within /trisapp/.
+    // iOS standalone PWAs sometimes land on unexpected URLs (start_url
+    // resolution quirks), so we redirect to the canonical entry. The
+    // requested path is shown above so a browser visit reveals what URL
+    // hit the 404, which is useful for diagnosing iOS launch behavior.
+    (function () {
+      var requested = location.pathname + location.search + location.hash;
+      var el = document.getElementById('from');
+      if (el) el.textContent = requested;
+      // Replace, not assign, so back button doesn't return to the 404.
+      location.replace('/trisapp/');
+    })();
+  </script>
+</body>
+</html>
