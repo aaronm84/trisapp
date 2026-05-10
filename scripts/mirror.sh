@@ -43,39 +43,51 @@ wget \
   -P "$OUT" \
   "$URL" "$PLAY_URL"
 
-# Emscripten typically emits these alongside the entry HTML. wget's
-# --page-requisites picks up <script src> but sometimes misses fetched .data
-# and .wasm files. Probe for them under /play/.
-for candidate in \
-    apotris.js apotris.wasm apotris.data \
-    index.js index.wasm index.data \
-    main.js main.wasm main.data \
-    play.js play.wasm play.data
-do
-  if [ ! -f "$OUT/play/$candidate" ]; then
-    echo "Probing for play/$candidate ..."
-    mkdir -p "$OUT/play"
-    curl -fsSL -A "$UA" -o "$OUT/play/$candidate" \
-      "https://akouzoukos.com/apotris/play/$candidate" 2>/dev/null \
-      || rm -f "$OUT/play/$candidate"
-  fi
+# Emscripten emits <Base>.wasm / <Base>.data / <Base>.worker.js next to
+# <Base>.js. wget's --page-requisites picks up <script src> but misses
+# assets fetched at runtime. Derive base names from whatever .js files
+# wget already mirrored, then probe their siblings. This is case-sensitive
+# (Apotris.js -> Apotris.wasm, not apotris.wasm).
+mkdir -p "$OUT/play"
+BASES="$(find "$OUT/play" -maxdepth 1 -name '*.js' -printf '%f\n' 2>/dev/null \
+  | sed 's/\.js$//' | sort -u)"
+# Fallback bases in case wget didn't pull any .js (rare but possible).
+BASES="$BASES
+Apotris
+apotris
+index
+main
+play"
+
+for base in $BASES; do
+  [ -z "$base" ] && continue
+  for ext in wasm data worker.js; do
+    candidate="$base.$ext"
+    if [ ! -f "$OUT/play/$candidate" ]; then
+      echo "Probing for play/$candidate ..."
+      curl -fsSL -A "$UA" -o "$OUT/play/$candidate" \
+        "https://akouzoukos.com/apotris/play/$candidate" 2>/dev/null \
+        || rm -f "$OUT/play/$candidate"
+    fi
+  done
 done
 
-# Sanity check: there should be a .wasm somewhere under play/.
+# Hard fail if no .wasm landed. A "successful" build with no wasm just
+# produces an HTML shell that silently fails at runtime — worse than red CI.
 if ! find "$OUT/play" -name '*.wasm' 2>/dev/null | grep -q .; then
-  cat <<'WARN'
+  cat <<'ERR' >&2
 
-WARNING: no .wasm under mirror/play/. The Emscripten build may load assets
-from a path the script didn't predict. Open
-https://akouzoukos.com/apotris/play/ in a browser with DevTools open, watch
-the Network tab for .wasm / .data / .js downloads, and save them manually
-into ./mirror/play/. Then re-run ./scripts/build.sh.
+ERROR: no .wasm under mirror/play/. The Emscripten build may have moved or
+renamed its assets. Open https://akouzoukos.com/apotris/play/ in a browser
+with DevTools open, watch the Network tab for .wasm / .data downloads, and
+add the discovered base name to the BASES fallback list in mirror.sh.
 
-Source repos for reference (in case you want to build from source instead):
+Source repos for reference:
   - https://gitea.com/akouzoukos/apotris   (official, post-DMCA)
   - https://github.com/gb-archive/apotris  (community mirror)
 
-WARN
+ERR
+  exit 1
 fi
 
 echo "Done. Files in $OUT:"
