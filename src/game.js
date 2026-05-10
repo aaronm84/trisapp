@@ -338,11 +338,15 @@
   let cellSize = 30;
 
   function resizeBoard() {
-    const wrap = document.getElementById('board-wrap');
+    const wrap = document.getElementById('play');
     const r = wrap.getBoundingClientRect();
-    // 1:2 aspect (COLS:ROWS). Fit whichever dimension is the constraint.
-    const cellByH = Math.floor(r.height / ROWS);
-    const cellByW = Math.floor(r.width / COLS);
+    // 1:2 aspect (COLS:ROWS). Fit whichever dimension is the constraint,
+    // accounting for the wrap's padding.
+    const styles = getComputedStyle(wrap);
+    const padX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+    const padY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+    const cellByH = Math.floor((r.height - padY) / ROWS);
+    const cellByW = Math.floor((r.width - padX) / COLS);
     cellSize = Math.max(6, Math.min(cellByH, cellByW));
     boardCanvas.width = cellSize * COLS;
     boardCanvas.height = cellSize * ROWS;
@@ -423,18 +427,31 @@
     }
   }
 
-  function renderPreview(ctx, type, slotIndex, slotHeight) {
+  function drawPieceInRect(ctx, type, rx, ry, rw, rh) {
     if (!type) return;
     const piece = PIECES[type];
     const shape = piece.shape;
-    const cell = Math.floor(Math.min(ctx.canvas.width / 5, slotHeight / 4));
+    const pad = 4;
+    const cell = Math.floor(Math.min((rw - pad) / shape[0].length, (rh - pad) / shape.length));
+    if (cell < 2) return;
     const w = shape[0].length * cell;
     const h = shape.length * cell;
-    const ox = Math.floor((ctx.canvas.width - w) / 2);
-    const oy = Math.floor(slotIndex * slotHeight + (slotHeight - h) / 2);
-    for (let y = 0; y < shape.length; y++) {
-      for (let x = 0; x < shape[y].length; x++) {
-        if (shape[y][x]) drawCell(ctx, ox / cell + x, oy / cell + y, piece.color, cell);
+    const ox = rx + (rw - w) / 2;
+    const oy = ry + (rh - h) / 2;
+    const edge = Math.max(1, Math.floor(cell * 0.14));
+    for (let py = 0; py < shape.length; py++) {
+      for (let px = 0; px < shape[py].length; px++) {
+        if (!shape[py][px]) continue;
+        const cx = ox + px * cell;
+        const cy = oy + py * cell;
+        ctx.fillStyle = piece.color;
+        ctx.fillRect(cx, cy, cell, cell);
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.fillRect(cx, cy, cell, edge);
+        ctx.fillRect(cx, cy, edge, cell);
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fillRect(cx, cy + cell - edge, cell, edge);
+        ctx.fillRect(cx + cell - edge, cy, edge, cell);
       }
     }
   }
@@ -442,13 +459,15 @@
   function renderSidePanels() {
     holdCtx.fillStyle = '#0a0a0e';
     holdCtx.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
-    if (state.hold) renderPreview(holdCtx, state.hold, 0, holdCanvas.height);
+    if (state.hold) drawPieceInRect(holdCtx, state.hold, 0, 0, holdCanvas.width, holdCanvas.height);
 
     nextCtx.fillStyle = '#0a0a0e';
     nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
     refillQueue();
-    const slotH = Math.floor(nextCanvas.height / 3);
-    for (let i = 0; i < 3; i++) renderPreview(nextCtx, state.queue[i], i, slotH);
+    const slotW = nextCanvas.width / 3;
+    for (let i = 0; i < 3; i++) {
+      drawPieceInRect(nextCtx, state.queue[i], i * slotW, 0, slotW, nextCanvas.height);
+    }
   }
 
   function updateStats() {

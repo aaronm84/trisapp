@@ -24,30 +24,26 @@
 <body>
   <div id="app">
     <header id="status">
-      <div class="stat"><span class="label">SCORE</span><span id="score">0</span></div>
-      <div class="stat"><span class="label">LEVEL</span><span id="level">1</span></div>
-      <div class="stat"><span class="label">LINES</span><span id="lines">0</span></div>
-      <button id="menu-btn" type="button" aria-label="Menu">☰</button>
+      <div class="status-row main-row">
+        <div class="stat"><span class="label">SCORE</span><span id="score">0</span></div>
+        <div class="stat"><span class="label">LEVEL</span><span id="level">1</span></div>
+        <div class="stat"><span class="label">LINES</span><span id="lines">0</span></div>
+        <button id="menu-btn" type="button" aria-label="Menu">☰</button>
+      </div>
+      <div class="status-row preview-row">
+        <div class="preview-group">
+          <span class="panel-label">HOLD</span>
+          <canvas id="hold" width="60" height="40"></canvas>
+        </div>
+        <div class="preview-group preview-next">
+          <span class="panel-label">NEXT</span>
+          <canvas id="next" width="180" height="40"></canvas>
+        </div>
+      </div>
     </header>
 
     <main id="play">
-      <aside id="side-left">
-        <div class="panel">
-          <div class="panel-label">HOLD</div>
-          <canvas id="hold" width="96" height="96"></canvas>
-        </div>
-      </aside>
-
-      <div id="board-wrap">
-        <canvas id="board"></canvas>
-      </div>
-
-      <aside id="side-right">
-        <div class="panel">
-          <div class="panel-label">NEXT</div>
-          <canvas id="next" width="96" height="288"></canvas>
-        </div>
-      </aside>
+      <canvas id="board"></canvas>
     </main>
 
     <footer id="controls">

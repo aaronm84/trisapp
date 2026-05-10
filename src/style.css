@@ -34,31 +34,50 @@ html, body {
 
 /* ---------- status bar ---------- */
 header#status {
+  background: var(--panel);
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.status-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 14px;
-  background: var(--panel);
 }
-.stat { display: flex; flex-direction: column; line-height: 1.1; }
+.main-row .stat { display: flex; flex-direction: column; line-height: 1.05; }
 .label {
   font-size: 9px;
   letter-spacing: 2px;
   color: var(--dim);
   font-weight: 700;
 }
-#score, #level, #lines { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#score, #level, #lines { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
 #menu-btn {
   margin-left: auto;
   background: transparent;
   border: 1px solid var(--line);
   color: var(--text);
-  width: 36px; height: 36px;
+  width: 32px; height: 32px;
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
 }
 #menu-btn:active { background: var(--line); }
+
+.preview-row {
+  border-top: 1px solid var(--line);
+  padding-top: 5px;
+  gap: 10px;
+}
+.preview-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.preview-next { margin-left: auto; }
+.preview-group .panel-label { font-size: 9px; letter-spacing: 2px; color: var(--dim); font-weight: 700; }
+.preview-group canvas { display: block; background: var(--bg); border-radius: 4px; }
 
 /* ---------- play area ---------- */
 main#play {
@@ -66,32 +85,8 @@ main#play {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 0 8px;
+  padding: 4px;
   min-height: 0;
-}
-aside { display: flex; flex-direction: column; gap: 8px; }
-.panel {
-  background: var(--panel);
-  border-radius: 10px;
-  padding: 6px;
-}
-.panel-label {
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--dim);
-  text-align: center;
-  margin-bottom: 4px;
-  font-weight: 700;
-}
-.panel canvas { display: block; }
-
-#board-wrap {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 1 auto;
 }
 #board {
   display: block;
