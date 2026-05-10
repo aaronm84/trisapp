@@ -28,6 +28,15 @@ cp -R "$MIRROR"/. "$DIST"/
 echo "[2/5] Copying PWA shell from src/"
 cp -R "$SRC"/. "$DIST"/
 
+# Override the upstream manifest.json (mirrored from akouzoukos.com) with
+# our PWA manifest content. The upstream HTML still contains
+# <link rel=manifest href="../manifest.json"> as the first manifest link,
+# and iOS reads the first one. The upstream manifest declares
+# start_url=/apotris/play/ and scope=/apotris/ — both 404 on this deploy,
+# and that's where the installed PWA was being launched. Pointing the
+# .json copy at our manifest neutralizes the bad redirect target.
+cp "$SRC/manifest.webmanifest" "$DIST/manifest.json"
+
 # Put the game at the deployment root by overwriting dist/index.html
 # (the upstream marketing page) with a copy of dist/play/index.html that
 # references its assets via play/. iOS standalone PWAs handle redirect
