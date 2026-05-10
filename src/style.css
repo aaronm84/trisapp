@@ -27,9 +27,10 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-           env(safe-area-inset-bottom) env(safe-area-inset-left);
-  gap: 6px;
+  /* Bottom safe-area is owned by the footer (see below) so it sits right
+     against the home indicator without double-padding. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  gap: 4px;
 }
 
 /* ---------- status bar ---------- */
@@ -105,25 +106,23 @@ footer#controls {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px 12px;
+  /* Top padding is tight; bottom padding absorbs the home-indicator
+     safe area so it doesn't add a second gap below the buttons. */
+  padding: 4px 12px max(env(safe-area-inset-bottom), 6px);
 }
 .dpad, .actions {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
-.dpad {
-  grid-template-columns: repeat(3, 1fr);
-}
-.actions {
-  grid-template-columns: repeat(2, 1fr);
-}
+.dpad { grid-template-columns: repeat(3, 1fr); }
+.actions { grid-template-columns: repeat(2, 1fr); }
 .btn {
   background: var(--line);
   color: var(--text);
   border: none;
-  border-radius: 12px;
-  width: 56px; height: 56px;
-  font-size: 20px;
+  border-radius: 10px;
+  width: 52px; height: 48px;
+  font-size: 18px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -133,7 +132,7 @@ footer#controls {
   cursor: pointer;
   transition: transform 60ms ease, background 60ms ease;
 }
-.btn.small { font-size: 11px; letter-spacing: 1px; }
+.btn.small { font-size: 10px; letter-spacing: 1px; }
 .btn:active, .btn.active {
   background: var(--accent);
   transform: scale(0.94);
@@ -141,7 +140,7 @@ footer#controls {
 
 /* slightly wider screens: bigger buttons */
 @media (min-width: 420px) {
-  .btn { width: 64px; height: 64px; }
+  .btn { width: 60px; height: 54px; }
 }
 
 /* ---------- overlay ---------- */
