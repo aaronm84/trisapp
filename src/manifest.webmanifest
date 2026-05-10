@@ -2,7 +2,7 @@
   "name": "Apotris",
   "short_name": "Apotris",
   "description": "Apotris, installable and playable offline.",
-  "start_url": "/trisapp/play/",
+  "start_url": "/trisapp/",
   "scope": "/trisapp/",
   "display": "standalone",
   "orientation": "portrait",

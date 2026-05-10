@@ -28,16 +28,23 @@ cp -R "$MIRROR"/. "$DIST"/
 echo "[2/5] Copying PWA shell from src/"
 cp -R "$SRC"/. "$DIST"/
 
-# The entry HTML for the PWA is /play/index.html (the wasm build).
-# We keep / available too (the marketing page) but inject PWA tags into
-# both so either is install-ready. We also write a top-level index.html
-# that redirects to play/, so adding the root URL to the home screen
-# still launches the game.
+# Put the game at the deployment root by overwriting dist/index.html
+# (the upstream marketing page) with a copy of dist/play/index.html that
+# references its assets via play/. iOS standalone PWAs handle redirect
+# chains and relative start_url resolution inconsistently, so the safest
+# launch URL is one that serves the game directly with no hops. With the
+# game at root, /trisapp/ works as the launch URL; /trisapp/play/ keeps
+# working too (same content, asset paths are relative to that location).
+if [ -f "$DIST/play/index.html" ]; then
+  sed -E \
+    -e 's|src="Apotris\.js"|src="play/Apotris.js"|g' \
+    -e 's|href="favicon\.ico"|href="play/favicon.ico"|g' \
+    "$DIST/play/index.html" > "$DIST/index.html"
+fi
+
 ENTRIES=()
-for candidate in play/index.html play/apotris.html index.html apotris.html; do
-  if [ -f "$DIST/$candidate" ]; then
-    ENTRIES+=("$DIST/$candidate")
-  fi
+for candidate in index.html play/index.html; do
+  [ -f "$DIST/$candidate" ] && ENTRIES+=("$DIST/$candidate")
 done
 if [ "${#ENTRIES[@]}" -eq 0 ]; then
   echo "ERROR: couldn't find any entry HTML under $DIST" >&2
@@ -49,22 +56,6 @@ for entry in "${ENTRIES[@]}"; do
   echo "  -> $entry"
   node "$ROOT/scripts/inject.js" "$entry"
 done
-
-# If the only real entry is play/index.html, make root index.html a redirect
-# so the home-screen icon (which uses start_url=".") opens the game.
-if [ -f "$DIST/play/index.html" ] && ! grep -q '<canvas' "$DIST/index.html" 2>/dev/null; then
-  cat > "$DIST/index.html" <<'HTML'
-<!doctype html>
-<meta charset="utf-8">
-<title>Apotris</title>
-<meta http-equiv="refresh" content="0; url=play/">
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Apotris">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
-<script>location.replace('play/');</script>
-HTML
-fi
 
 echo "[4/5] Stamping service worker with cache version"
 STAMP="$(date +%Y%m%d%H%M%S)"
