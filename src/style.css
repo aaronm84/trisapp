@@ -27,58 +27,50 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  /* Bottom safe-area is owned by the footer (see below) so it sits right
-     against the home indicator without double-padding. */
+  /* Bottom safe-area is owned by the footer so it sits right against the
+     home indicator without double-padding. */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
-  gap: 4px;
+  gap: 2px;
 }
 
-/* ---------- status bar ---------- */
+/* ---------- status bar (single compact row) ---------- */
 header#status {
   background: var(--panel);
-  padding: 6px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.status-row {
+  padding: 4px 10px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
-.main-row .stat { display: flex; flex-direction: column; line-height: 1.05; }
+.stats {
+  flex: 1;
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  text-align: center;
+}
 .label {
-  font-size: 9px;
-  letter-spacing: 2px;
+  font-size: 8px;
+  letter-spacing: 1.5px;
   color: var(--dim);
   font-weight: 700;
 }
-#score, #level, #lines { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#score, #level, #lines { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#hold, #next { display: block; background: var(--bg); border-radius: 4px; }
 #menu-btn {
-  margin-left: auto;
   background: transparent;
   border: 1px solid var(--line);
   color: var(--text);
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  font-size: 16px;
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  font-size: 14px;
   cursor: pointer;
 }
 #menu-btn:active { background: var(--line); }
-
-.preview-row {
-  border-top: 1px solid var(--line);
-  padding-top: 5px;
-  gap: 10px;
-}
-.preview-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.preview-next { margin-left: auto; }
-.preview-group .panel-label { font-size: 9px; letter-spacing: 2px; color: var(--dim); font-weight: 700; }
-.preview-group canvas { display: block; background: var(--bg); border-radius: 4px; }
 
 /* ---------- play area ---------- */
 main#play {
@@ -86,7 +78,7 @@ main#play {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 2px;
   min-height: 0;
 }
 #board {
@@ -105,14 +97,13 @@ footer#controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  /* Top padding is tight; bottom padding absorbs the home-indicator
-     safe area so it doesn't add a second gap below the buttons. */
-  padding: 4px 12px max(env(safe-area-inset-bottom), 6px);
+  gap: 10px;
+  /* Top is tight; bottom absorbs the home-indicator safe area. */
+  padding: 2px 10px max(env(safe-area-inset-bottom), 4px);
 }
 .dpad, .actions {
   display: grid;
-  gap: 6px;
+  gap: 5px;
 }
 .dpad { grid-template-columns: repeat(3, 1fr); }
 .actions { grid-template-columns: repeat(2, 1fr); }
@@ -120,9 +111,9 @@ footer#controls {
   background: var(--line);
   color: var(--text);
   border: none;
-  border-radius: 10px;
-  width: 52px; height: 48px;
-  font-size: 18px;
+  border-radius: 9px;
+  width: 48px; height: 42px;
+  font-size: 16px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -132,15 +123,14 @@ footer#controls {
   cursor: pointer;
   transition: transform 60ms ease, background 60ms ease;
 }
-.btn.small { font-size: 10px; letter-spacing: 1px; }
+.btn.small { font-size: 9px; letter-spacing: 1px; }
 .btn:active, .btn.active {
   background: var(--accent);
   transform: scale(0.94);
 }
 
-/* slightly wider screens: bigger buttons */
 @media (min-width: 420px) {
-  .btn { width: 60px; height: 54px; }
+  .btn { width: 56px; height: 48px; }
 }
 
 /* ---------- overlay ---------- */
