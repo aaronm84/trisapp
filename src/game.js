@@ -244,7 +244,7 @@
     const newLevel = Math.floor(state.lines / 10) + 1;
     if (newLevel > state.level) {
       state.level = newLevel;
-      // Standard "Tetris worlds" gravity curve, clamped to 50ms minimum.
+      // Exponential level-up curve, clamped to 50ms minimum per drop.
       state.gravity = Math.max(
         50,
         Math.pow(0.8 - (state.level - 1) * 0.007, state.level - 1) * 1000

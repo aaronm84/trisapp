@@ -63,11 +63,3 @@ on the bottom-right (rotate left, rotate right, hold, hard drop).
 - **Difficulty curve:** tweak `BASE_GRAVITY_MS`, `LOCK_DELAY_MS`, and the
   level-up gravity formula in `clearLines()`.
 
-## History
-
-This repo previously wrapped a third-party WebAssembly game build as a PWA.
-iOS standalone-PWA mode has long-standing quirks around pthread workers and
-cross-origin isolation, and we couldn't reliably get that build loading
-inside an installed iPhone PWA on top of GitHub Pages. The fix was to drop
-the wasm wrapper entirely and write a from-scratch JavaScript implementation,
-which sidesteps the entire COI/SAB/pthread story.
