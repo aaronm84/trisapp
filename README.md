@@ -1,4 +1,4 @@
-# apotris
+# trisapp
 
 Wraps the playable web build of [Apotris](https://akouzoukos.com/apotris) as an
 **installable, offline-capable PWA** — so you can add it to your iPhone home
@@ -70,7 +70,7 @@ shortcut keeps working even if the original URL goes away.
 ## Offline guarantees
 
 - First load needs internet (precache fills).
-- Every asset in `dist/` ends up in the SW cache, including the `.gba` ROM.
+- Every asset in `dist/` ends up in the SW cache, including the wasm/data files.
 - Saves go to IndexedDB / localStorage, which persist across launches.
 - iOS can evict caches if storage is critically low and the app hasn't been
   opened in weeks. Rare in practice.
