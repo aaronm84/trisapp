@@ -15,9 +15,27 @@ if (!file) {
 
 let html = fs.readFileSync(file, 'utf8');
 
+// Determine the relative prefix to the dist root. The shell files
+// (manifest, sw.js, controls.*, icons/) live at the dist root, so a
+// nested entry like play/index.html needs "../" prepended.
+const dist = path.resolve(file, '..', '..');
+// Walk up until we find the dir that contains manifest.webmanifest, or
+// fall back to depth based on filename.
+let prefix = '';
+let dir = path.dirname(file);
+while (dir.length >= 2) {
+  const parent = path.dirname(dir);
+  if (parent === dir) break;
+  if (path.basename(dir) === 'dist' || fs.existsSync(path.join(dir, 'manifest.webmanifest'))) {
+    break;
+  }
+  prefix += '../';
+  dir = parent;
+}
+
 const HEAD_TAGS = `
     <!-- PWA -->
-    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="manifest" href="${prefix}manifest.webmanifest">
     <meta name="theme-color" content="#101015">
     <meta name="color-scheme" content="dark light">
 
@@ -25,21 +43,21 @@ const HEAD_TAGS = `
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Apotris">
-    <link rel="apple-touch-icon" href="icons/icon-180.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+    <link rel="apple-touch-icon" href="${prefix}icons/icon-180.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="${prefix}icons/icon-180.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="format-detection" content="telephone=no">
 
     <!-- Viewport: cover the notch, disable user zoom for game UX -->
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1">
 
-    <link rel="stylesheet" href="controls.css">
+    <link rel="stylesheet" href="${prefix}controls.css">
 `;
 
 const BODY_TAGS = `
     <div id="pwa-controls" hidden></div>
-    <script src="controls.js" defer></script>
-    <script src="register-sw.js" defer></script>
+    <script src="${prefix}controls.js" defer></script>
+    <script src="${prefix}register-sw.js" defer></script>
 `;
 
 if (!html.includes('manifest.webmanifest')) {
