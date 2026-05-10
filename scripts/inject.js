@@ -48,8 +48,10 @@ const HEAD_TAGS = `
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="format-detection" content="telephone=no">
 
-    <!-- Viewport: cover the notch, disable user zoom for game UX -->
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1">
+    <!-- Viewport: match upstream (no viewport-fit=cover — that lets the canvas
+         render under the notch/home indicator and pushes our overlay
+         offscreen), but disable pinch-zoom for game UX. -->
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,maximum-scale=1">
 
     <link rel="stylesheet" href="${prefix}controls.css">
 

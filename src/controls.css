@@ -1,3 +1,28 @@
+/* SDL2 writes canvas.style.width/height to its native framebuffer size,
+   which on a phone is bigger than the viewport. controls.js scales it
+   down with !important inline styles; these rules just clean up the
+   surrounding layout so the scaled canvas centers cleanly and the body
+   doesn't expose a scrollable overflow that breaks position:fixed. */
+html, body {
+  height: 100% !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  /* Honor iOS dynamic viewport (visible area, not "if address bar were hidden") */
+  height: 100dvh !important;
+}
+#container {
+  width: 100vw;
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+#canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
 /* On-screen GBA controls. Hidden by default; controls.js shows them on
    touch devices and re-hides them when a gamepad connects. */
 

@@ -17,6 +17,40 @@
     select: { key: 'Backspace',  code: 'Backspace',  keyCode: 8  },
   };
 
+  // SDL2 sets canvas.style.width/height to the framebuffer size (often
+  // larger than the iPhone viewport). Scale it to fit while preserving
+  // aspect ratio. setProperty('important') ensures we beat SDL's later
+  // inline-style writes, since SDL doesn't use !important.
+  const fitCanvas = () => {
+    const c = document.getElementById('canvas') || document.querySelector('canvas');
+    if (!c || !c.width || !c.height) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const scale = Math.min(vw / c.width, vh / c.height);
+    if (!isFinite(scale) || scale <= 0) return;
+    const dw = Math.floor(c.width * scale);
+    const dh = Math.floor(c.height * scale);
+    c.style.setProperty('width',  dw + 'px', 'important');
+    c.style.setProperty('height', dh + 'px', 'important');
+    c.style.setProperty('display', 'block', 'important');
+    c.style.setProperty('margin', 'auto', 'important');
+  };
+  // Run on resize, orientation change, and whenever SDL touches the canvas.
+  window.addEventListener('resize', fitCanvas);
+  window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 100));
+  const obs = new MutationObserver(() => fitCanvas());
+  obs.observe(document.documentElement, {
+    childList: true, subtree: true,
+    attributes: true, attributeFilter: ['width', 'height', 'style'],
+  });
+  // First-paint fallback: poll until the canvas exists with non-zero size.
+  let tries = 0;
+  const tick = () => {
+    fitCanvas();
+    if (++tries < 60) setTimeout(tick, 250);
+  };
+  tick();
+
   const root = document.getElementById('pwa-controls');
   if (!root) return;
 
