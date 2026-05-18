@@ -37,7 +37,7 @@
   const LOCK_DELAY_MS = 500;
   const DAS_INITIAL_MS = 170; // delayed auto-shift: hold before repeat begins
   const DAS_REPEAT_MS = 45;
-  const MAX_START_LEVEL = 10;
+  const MAX_START_LEVEL = 99;
   // Goal lines needed to advance a level. Scales with the level so later
   // stages take longer despite the faster gravity. Level 1 = 20, +5 per level.
   function linesPerLevel(level) {
@@ -83,14 +83,75 @@
   const LS = {
     sound: 'trisapp-sound',
     vibrate: 'trisapp-vibrate',
+    music: 'trisapp-music',
     difficulty: 'trisapp-difficulty',
-    startLevel: 'trisapp-start-level',
     bestScore: 'trisapp-best-score',
     bestLevel: 'trisapp-best-level',
     bestLines: 'trisapp-best-lines',
     totalLines: 'trisapp-total-lines',
     gamesPlayed: 'trisapp-games-played',
   };
+
+  // -------- music: chiptune player --------
+  // Note name -> frequency. Covers what the songs below reference.
+  const NOTES = {
+    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00,
+    'A4': 440.00, 'Bb4': 466.16, 'B4': 493.88,
+    'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'F#5': 739.99,
+    'G5': 783.99, 'A5': 880.00, 'Bb5': 932.33, 'B5': 987.77,
+    'C6': 1046.50, 'D6': 1174.66, 'E6': 1318.51,
+  };
+
+  // One short loop per level color theme, cycled by (level - 1) % length.
+  // Format: { tempo: bpm, notes: [[name, beats], ...] }
+  const SONGS = [
+    // 0 - Aurora (C major, bright)
+    { tempo: 132, notes: [
+      ['C5',1],['E5',1],['G5',1],['C6',1],
+      ['B5',1],['G5',1],['E5',1],['G5',1],
+      ['A5',1],['F5',1],['D5',1],['F5',1],
+      ['G5',1],['E5',1],['C5',2],
+    ]},
+    // 1 - Mint (D minor pentatonic)
+    { tempo: 124, notes: [
+      ['D5',0.5],['F5',0.5],['A5',1],['A5',0.5],['G5',0.5],['F5',1],
+      ['D5',1],['C5',1],
+      ['F5',0.5],['A5',0.5],['C6',1],['A5',0.5],['G5',0.5],['F5',1],
+      ['D5',2],
+    ]},
+    // 2 - Berry (A minor)
+    { tempo: 126, notes: [
+      ['A4',1],['C5',1],['E5',1],['C5',1],['D5',1],['E5',2],['D5',1],
+      ['C5',1],['E5',1],['A5',1],['G5',1],['F5',1],['E5',2],['A4',1],
+    ]},
+    // 3 - Sunset (F major, lyrical)
+    { tempo: 112, notes: [
+      ['F5',1],['A5',1],['C6',1],['A5',1],['G5',1],['F5',1],['E5',1],['F5',1],
+      ['Bb5',1],['A5',1],['G5',1],['F5',1],['E5',1],['D5',1],['F5',2],
+    ]},
+    // 4 - Ocean (G mixolydian)
+    { tempo: 118, notes: [
+      ['G4',1],['D5',1],['G5',1],['F5',1],['D5',1],['G4',1],['D5',2],
+      ['C5',1],['G5',1],['D6',1],['C6',1],['G5',1],['F5',1],['D5',2],
+    ]},
+    // 5 - Forest (E minor)
+    { tempo: 108, notes: [
+      ['E5',1],['G5',1],['B5',1],['G5',1],['A5',1],['G5',1],['F#5',1],['E5',1],
+      ['D5',1],['B4',1],['E5',2],['G5',1],['E5',1],['B4',2],
+    ]},
+    // 6 - Neon (B minor, fast)
+    { tempo: 144, notes: [
+      ['B4',0.5],['D5',0.5],['F#5',0.5],['D5',0.5],
+      ['B4',0.5],['D5',0.5],['F#5',0.5],['A5',0.5],
+      ['B5',0.5],['A5',0.5],['F#5',0.5],['D5',0.5],
+      ['B4',1],['F#5',1],
+    ]},
+    // 7 - Pastel (C lydian, calm)
+    { tempo: 96, notes: [
+      ['C5',2],['E5',2],['G5',2],['F#5',2],
+      ['E5',2],['D5',2],['C5',4],
+    ]},
+  ];
 
   // -------- state --------
   const state = {
@@ -115,6 +176,7 @@
     softDrop: false,
     soundEnabled: true,
     vibrateEnabled: true,
+    musicEnabled: true,
     difficulty: 'normal',
     startLevel: 1,
     best: { score: 0, level: 1, lines: 0, totalLines: 0, gamesPlayed: 0 },
@@ -416,6 +478,80 @@
 
   function vibrate(ms) {
     if (state.vibrateEnabled && navigator.vibrate) navigator.vibrate(ms);
+  }
+
+  // -------- music (square-wave chiptune loop per level) --------
+  const music = {
+    timer: null,        // setInterval id for the scheduler
+    songIndex: 0,       // which SONGS entry is currently playing
+    beat: 0,            // index into SONGS[..].notes (mod length)
+    nextNoteAt: 0,      // AudioContext time of the next unscheduled note
+    activeOscs: [],     // oscillators we've started but not yet stopped
+  };
+
+  function startMusic() {
+    if (music.timer || !state.musicEnabled) return;
+    const ctx = getAudio();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    music.songIndex = (state.level - 1) % SONGS.length;
+    music.beat = 0;
+    music.nextNoteAt = ctx.currentTime + 0.08;
+    scheduleMusic();
+    music.timer = setInterval(scheduleMusic, 80);
+  }
+
+  function stopMusic() {
+    if (music.timer) {
+      clearInterval(music.timer);
+      music.timer = null;
+    }
+    const ctx = audioCtx;
+    const now = ctx ? ctx.currentTime : 0;
+    // Cut any notes scheduled in the future; let already-playing ones decay.
+    for (const o of music.activeOscs) {
+      try { if (o.stopAt > now) o.osc.stop(now + 0.02); } catch (_) {}
+    }
+    music.activeOscs = music.activeOscs.filter((o) => o.stopAt > now);
+  }
+
+  function scheduleMusic() {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const song = SONGS[music.songIndex];
+    const beatDur = 60 / song.tempo;
+    // Schedule a short lookahead window so the scheduler tick can sleep.
+    while (music.nextNoteAt < ctx.currentTime + 0.4) {
+      const [name, beats] = song.notes[music.beat % song.notes.length];
+      const dur = beats * beatDur;
+      const freq = NOTES[name];
+      if (freq) playMusicNote(freq, dur, music.nextNoteAt);
+      music.nextNoteAt += dur;
+      music.beat++;
+    }
+    // Drop oscillators that have already finished.
+    const now = ctx.currentTime;
+    music.activeOscs = music.activeOscs.filter((o) => o.stopAt > now);
+  }
+
+  function playMusicNote(freq, dur, when) {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'square'; // NES-ish pulse-wave timbre
+    osc.frequency.value = freq;
+    const peak = 0.035;
+    const tail = Math.min(0.06, dur * 0.25);
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(peak, when + 0.008);
+    g.gain.linearRampToValueAtTime(peak, when + dur - tail);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(when);
+    osc.stop(when + dur + 0.02);
+    music.activeOscs.push({ osc, stopAt: when + dur });
   }
 
   // -------- rendering --------
@@ -782,11 +918,13 @@
     // Unlock audio context (Safari requires a user gesture)
     const ctx = getAudio();
     if (ctx && ctx.state === 'suspended') ctx.resume();
+    startMusic();
   }
 
   function pause() {
     if (state.status !== 'playing') return;
     state.status = 'paused';
+    stopMusic();
     renderBestStats();
     showOverlay({
       title: 'PAUSED',
@@ -801,13 +939,17 @@
     state.status = 'playing';
     state.lastFrame = 0;
     hideOverlay();
+    startMusic();
   }
 
   function gameOver() {
     state.status = 'gameover';
+    stopMusic();
     playSound('gameover');
     vibrate(50);
     saveProgress();
+    // Default the next game to the level they died on (clamped to unlocks).
+    setStartLevel(state.level);
     renderBestStats();
     showOverlay({
       title: 'GAME OVER',
@@ -819,6 +961,12 @@
 
   function levelUp() {
     state.status = 'levelup';
+    stopMusic();
+    // Unlock this level for future runs as soon as it's reached.
+    if (state.level > state.best.level) {
+      state.best.level = state.level;
+      localStorage.setItem(LS.bestLevel, String(state.best.level));
+    }
     const scoreGain = state.score - state.scoreAtLevelStart;
     state.scoreAtLevelStart = state.score;
     playSound('levelup');
@@ -843,6 +991,7 @@
     state.status = 'playing';
     nextPiece();
     hideOverlay();
+    startMusic();
   }
 
   function saveProgress() {
@@ -883,9 +1032,12 @@
   }
 
   function setStartLevel(n) {
-    state.startLevel = Math.max(1, Math.min(MAX_START_LEVEL, n));
-    localStorage.setItem(LS.startLevel, String(state.startLevel));
+    const unlocked = Math.max(1, state.best.level || 1);
+    const cap = Math.min(MAX_START_LEVEL, unlocked);
+    state.startLevel = Math.max(1, Math.min(cap, n));
     document.getElementById('start-level').textContent = state.startLevel;
+    document.getElementById('start-level-down').disabled = state.startLevel <= 1;
+    document.getElementById('start-level-up').disabled = state.startLevel >= cap;
     // Preview the level color on the menu so the picker feels alive.
     if (state.status !== 'playing' && state.status !== 'paused') {
       document.documentElement.style.setProperty('--level-color', levelColor(state.startLevel));
@@ -899,19 +1051,22 @@
     if (sound !== null) state.soundEnabled = sound === '1';
     const vibe = localStorage.getItem(LS.vibrate);
     if (vibe !== null) state.vibrateEnabled = vibe === '1';
+    const mus = localStorage.getItem(LS.music);
+    if (mus !== null) state.musicEnabled = mus === '1';
     const diff = localStorage.getItem(LS.difficulty);
     if (diff && DIFFICULTIES[diff]) state.difficulty = diff;
-    const sLvl = parseInt(localStorage.getItem(LS.startLevel) || '1', 10);
-    state.startLevel = Math.max(1, Math.min(MAX_START_LEVEL, isFinite(sLvl) ? sLvl : 1));
-    state.level = state.startLevel;
     state.best.score = parseInt(localStorage.getItem(LS.bestScore) || '0', 10) || 0;
     state.best.level = parseInt(localStorage.getItem(LS.bestLevel) || '1', 10) || 1;
     state.best.lines = parseInt(localStorage.getItem(LS.bestLines) || '0', 10) || 0;
     state.best.totalLines = parseInt(localStorage.getItem(LS.totalLines) || '0', 10) || 0;
     state.best.gamesPlayed = parseInt(localStorage.getItem(LS.gamesPlayed) || '0', 10) || 0;
+    // Default to the highest level the player has ever reached.
+    state.startLevel = Math.max(1, state.best.level);
+    state.level = state.startLevel;
 
     document.getElementById('sound-toggle').checked = state.soundEnabled;
     document.getElementById('vibrate-toggle').checked = state.vibrateEnabled;
+    document.getElementById('music-toggle').checked = state.musicEnabled;
     setDifficulty(state.difficulty);
     setStartLevel(state.startLevel);
     renderBestStats();
@@ -924,6 +1079,12 @@
     document.getElementById('vibrate-toggle').addEventListener('change', (e) => {
       state.vibrateEnabled = e.target.checked;
       localStorage.setItem(LS.vibrate, e.target.checked ? '1' : '0');
+    });
+    document.getElementById('music-toggle').addEventListener('change', (e) => {
+      state.musicEnabled = e.target.checked;
+      localStorage.setItem(LS.music, e.target.checked ? '1' : '0');
+      if (state.musicEnabled && state.status === 'playing') startMusic();
+      else stopMusic();
     });
     document.querySelectorAll('#difficulty-picker .seg button').forEach((btn) => {
       btn.addEventListener('click', () => setDifficulty(btn.dataset.difficulty));

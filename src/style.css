@@ -286,6 +286,11 @@ footer#controls {
   cursor: pointer;
 }
 .picker .stepper button:active { background: var(--line); }
+.picker .stepper button:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+.picker .stepper button:disabled:active { background: transparent; }
 .picker .stepper span {
   min-width: 22px;
   text-align: center;
