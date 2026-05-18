@@ -33,11 +33,38 @@
   ];
 
   const SCORE_TABLE = { 1: 100, 2: 300, 3: 500, 4: 800 };
-  const BASE_GRAVITY_MS = 1000;
   const SOFT_DROP_MS = 50;
   const LOCK_DELAY_MS = 500;
   const DAS_INITIAL_MS = 170; // delayed auto-shift: hold before repeat begins
   const DAS_REPEAT_MS = 45;
+  const MAX_START_LEVEL = 10;
+
+  // Per-difficulty gravity curve. base = ms/drop at level 1, factor = exponential
+  // decay base. Computed as max(50, pow(factor - (lvl-1)*0.007, lvl-1) * base).
+  const DIFFICULTIES = {
+    easy:   { base: 1400, factor: 0.85, scoreMul: 0.8 },
+    normal: { base: 1000, factor: 0.80, scoreMul: 1.0 },
+    hard:   { base: 700,  factor: 0.75, scoreMul: 1.3 },
+  };
+
+  // Accent palette cycled by level. Each level picks the next color, wrapping.
+  const LEVEL_COLORS = [
+    '#4a90e2', '#22d3ee', '#34d399', '#facc15',
+    '#fb923c', '#f87171', '#c084fc', '#e879f9',
+  ];
+
+  // localStorage keys
+  const LS = {
+    sound: 'trisapp-sound',
+    vibrate: 'trisapp-vibrate',
+    difficulty: 'trisapp-difficulty',
+    startLevel: 'trisapp-start-level',
+    bestScore: 'trisapp-best-score',
+    bestLevel: 'trisapp-best-level',
+    bestLines: 'trisapp-best-lines',
+    totalLines: 'trisapp-total-lines',
+    gamesPlayed: 'trisapp-games-played',
+  };
 
   // -------- state --------
   const state = {
@@ -53,17 +80,34 @@
     level: 1,
     lines: 0,
     status: 'menu', // 'menu' | 'playing' | 'paused' | 'gameover'
-    gravity: BASE_GRAVITY_MS,
+    gravity: DIFFICULTIES.normal.base,
     gravityTimer: 0,
     lockTimer: 0,
     lockMoves: 0, // how many times the player has reset the lock delay
     softDrop: false,
     soundEnabled: true,
     vibrateEnabled: true,
+    difficulty: 'normal',
+    startLevel: 1,
+    best: { score: 0, level: 1, lines: 0, totalLines: 0, gamesPlayed: 0 },
+    isNewBest: false,
     lastFrame: 0,
     flashRows: null, // rows currently flashing during a line clear
     flashUntil: 0,
   };
+
+  function gravityFor(level, difficulty) {
+    const cfg = DIFFICULTIES[difficulty] || DIFFICULTIES.normal;
+    return Math.max(50, Math.pow(cfg.factor - (level - 1) * 0.007, level - 1) * cfg.base);
+  }
+
+  function levelColor(level) {
+    return LEVEL_COLORS[(level - 1) % LEVEL_COLORS.length];
+  }
+
+  function applyLevelColor() {
+    document.documentElement.style.setProperty('--level-color', levelColor(state.level));
+  }
 
   function makeBoard() {
     return Array.from({ length: ROWS + SPAWN_ROWS }, () => Array(COLS).fill(null));
@@ -240,15 +284,13 @@
       state.board.unshift(Array(COLS).fill(null));
     }
     state.lines += fullRows.length;
-    state.score += (SCORE_TABLE[fullRows.length] || 1200) * state.level;
-    const newLevel = Math.floor(state.lines / 10) + 1;
+    const mul = (DIFFICULTIES[state.difficulty] || DIFFICULTIES.normal).scoreMul;
+    state.score += Math.round((SCORE_TABLE[fullRows.length] || 1200) * state.level * mul);
+    const newLevel = state.startLevel + Math.floor(state.lines / 10);
     if (newLevel > state.level) {
       state.level = newLevel;
-      // Exponential level-up curve, clamped to 50ms minimum per drop.
-      state.gravity = Math.max(
-        50,
-        Math.pow(0.8 - (state.level - 1) * 0.007, state.level - 1) * 1000
-      );
+      state.gravity = gravityFor(state.level, state.difficulty);
+      applyLevelColor();
     }
     playSound('lineclear', fullRows.length);
     vibrate(fullRows.length === 4 ? 30 : 12);
@@ -630,6 +672,16 @@
     } else {
       statsEl.classList.add('hidden');
     }
+    const showPickers = opts.showPickers !== false;
+    const bestEl = document.getElementById('best-stats');
+    const diffEl = document.getElementById('difficulty-picker');
+    const stepEl = document.getElementById('start-level').parentElement.parentElement;
+    bestEl.style.display = showPickers ? '' : 'none';
+    diffEl.style.display = showPickers ? '' : 'none';
+    stepEl.style.display = showPickers ? '' : 'none';
+    const newBestEl = document.getElementById('new-best');
+    if (state.isNewBest && opts.showStats) newBestEl.classList.remove('hidden');
+    else newBestEl.classList.add('hidden');
     overlayEl.classList.remove('hidden');
     overlayEl.setAttribute('aria-hidden', 'false');
   }
@@ -642,9 +694,9 @@
   function start() {
     state.board = makeBoard();
     state.score = 0;
-    state.level = 1;
+    state.level = state.startLevel;
     state.lines = 0;
-    state.gravity = BASE_GRAVITY_MS;
+    state.gravity = gravityFor(state.level, state.difficulty);
     state.gravityTimer = 0;
     state.lockTimer = 0;
     state.lockMoves = 0;
@@ -653,9 +705,11 @@
     state.queue = [];
     state.softDrop = false;
     state.status = 'playing';
+    state.isNewBest = false;
     dasDir = 0;
     dasTimer = 0;
     dasRepeating = false;
+    applyLevelColor();
     hideOverlay();
     nextPiece();
     // Unlock audio context (Safari requires a user gesture)
@@ -666,7 +720,7 @@
   function pause() {
     if (state.status !== 'playing') return;
     state.status = 'paused';
-    showOverlay({ title: 'PAUSED', message: 'Take a breath.', action: 'RESUME' });
+    showOverlay({ title: 'PAUSED', message: 'Take a breath.', action: 'RESUME', showPickers: false });
   }
 
   function resume() {
@@ -680,6 +734,8 @@
     state.status = 'gameover';
     playSound('gameover');
     vibrate(50);
+    saveProgress();
+    renderBestStats();
     showOverlay({
       title: 'GAME OVER',
       message: state.lines >= 40 ? 'Nice run.' : 'Try again.',
@@ -688,24 +744,91 @@
     });
   }
 
+  function saveProgress() {
+    state.isNewBest = state.score > state.best.score;
+    if (state.score > state.best.score) {
+      state.best.score = state.score;
+      localStorage.setItem(LS.bestScore, String(state.best.score));
+    }
+    if (state.level > state.best.level) {
+      state.best.level = state.level;
+      localStorage.setItem(LS.bestLevel, String(state.best.level));
+    }
+    if (state.lines > state.best.lines) {
+      state.best.lines = state.lines;
+      localStorage.setItem(LS.bestLines, String(state.best.lines));
+    }
+    state.best.totalLines += state.lines;
+    localStorage.setItem(LS.totalLines, String(state.best.totalLines));
+    state.best.gamesPlayed += 1;
+    localStorage.setItem(LS.gamesPlayed, String(state.best.gamesPlayed));
+  }
+
+  function renderBestStats() {
+    document.getElementById('best-score').textContent = state.best.score;
+    document.getElementById('best-level').textContent = state.best.level;
+    document.getElementById('total-lines').textContent = state.best.totalLines;
+  }
+
+  function setDifficulty(d) {
+    if (!DIFFICULTIES[d]) return;
+    state.difficulty = d;
+    localStorage.setItem(LS.difficulty, d);
+    document.querySelectorAll('#difficulty-picker .seg button').forEach((btn) => {
+      const on = btn.dataset.difficulty === d;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+
+  function setStartLevel(n) {
+    state.startLevel = Math.max(1, Math.min(MAX_START_LEVEL, n));
+    localStorage.setItem(LS.startLevel, String(state.startLevel));
+    document.getElementById('start-level').textContent = state.startLevel;
+    // Preview the level color on the menu so the picker feels alive.
+    if (state.status !== 'playing' && state.status !== 'paused') {
+      document.documentElement.style.setProperty('--level-color', levelColor(state.startLevel));
+    }
+  }
+
   // -------- init --------
   function init() {
     // Restore preferences
-    const sound = localStorage.getItem('trisapp-sound');
+    const sound = localStorage.getItem(LS.sound);
     if (sound !== null) state.soundEnabled = sound === '1';
-    const vibe = localStorage.getItem('trisapp-vibrate');
+    const vibe = localStorage.getItem(LS.vibrate);
     if (vibe !== null) state.vibrateEnabled = vibe === '1';
+    const diff = localStorage.getItem(LS.difficulty);
+    if (diff && DIFFICULTIES[diff]) state.difficulty = diff;
+    const sLvl = parseInt(localStorage.getItem(LS.startLevel) || '1', 10);
+    state.startLevel = Math.max(1, Math.min(MAX_START_LEVEL, isFinite(sLvl) ? sLvl : 1));
+    state.level = state.startLevel;
+    state.best.score = parseInt(localStorage.getItem(LS.bestScore) || '0', 10) || 0;
+    state.best.level = parseInt(localStorage.getItem(LS.bestLevel) || '1', 10) || 1;
+    state.best.lines = parseInt(localStorage.getItem(LS.bestLines) || '0', 10) || 0;
+    state.best.totalLines = parseInt(localStorage.getItem(LS.totalLines) || '0', 10) || 0;
+    state.best.gamesPlayed = parseInt(localStorage.getItem(LS.gamesPlayed) || '0', 10) || 0;
+
     document.getElementById('sound-toggle').checked = state.soundEnabled;
     document.getElementById('vibrate-toggle').checked = state.vibrateEnabled;
+    setDifficulty(state.difficulty);
+    setStartLevel(state.startLevel);
+    renderBestStats();
+    applyLevelColor();
 
     document.getElementById('sound-toggle').addEventListener('change', (e) => {
       state.soundEnabled = e.target.checked;
-      localStorage.setItem('trisapp-sound', e.target.checked ? '1' : '0');
+      localStorage.setItem(LS.sound, e.target.checked ? '1' : '0');
     });
     document.getElementById('vibrate-toggle').addEventListener('change', (e) => {
       state.vibrateEnabled = e.target.checked;
-      localStorage.setItem('trisapp-vibrate', e.target.checked ? '1' : '0');
+      localStorage.setItem(LS.vibrate, e.target.checked ? '1' : '0');
     });
+    document.querySelectorAll('#difficulty-picker .seg button').forEach((btn) => {
+      btn.addEventListener('click', () => setDifficulty(btn.dataset.difficulty));
+    });
+    document.getElementById('start-level-down').addEventListener('click', () => setStartLevel(state.startLevel - 1));
+    document.getElementById('start-level-up').addEventListener('click', () => setStartLevel(state.startLevel + 1));
     actionEl.addEventListener('click', () => {
       if (state.status === 'paused') resume();
       else start();

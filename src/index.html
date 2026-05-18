@@ -24,7 +24,7 @@
 <body>
   <div id="app">
     <header id="status">
-      <canvas id="hold" width="56" height="36" title="Hold"></canvas>
+      <canvas id="hold" width="56" height="36" title="Hold (tap to swap)" data-key="hold" role="button" aria-label="Hold"></canvas>
       <div class="stats">
         <div class="stat"><span class="label">SCORE</span><span id="score">0</span></div>
         <div class="stat"><span class="label">LV</span><span id="level">1</span></div>
@@ -47,8 +47,7 @@
       <div class="actions">
         <button class="btn" type="button" data-key="rotate-ccw" aria-label="Rotate left">↺</button>
         <button class="btn" type="button" data-key="rotate-cw"  aria-label="Rotate right">↻</button>
-        <button class="btn small" type="button" data-key="hold" aria-label="Hold">HOLD</button>
-        <button class="btn"       type="button" data-key="hard-drop" aria-label="Hard drop">⤓</button>
+        <button class="btn wide" type="button" data-key="hard-drop" aria-label="Hard drop">⤓</button>
       </div>
     </footer>
 
@@ -60,6 +59,28 @@
           <div><span class="label">SCORE</span><span id="final-score">0</span></div>
           <div><span class="label">LINES</span><span id="final-lines">0</span></div>
           <div><span class="label">LEVEL</span><span id="final-level">1</span></div>
+        </div>
+        <p id="new-best" class="new-best hidden">NEW BEST!</p>
+        <div class="best-stats" id="best-stats">
+          <div><span class="label">BEST SCORE</span><span id="best-score">0</span></div>
+          <div><span class="label">BEST LEVEL</span><span id="best-level">1</span></div>
+          <div><span class="label">TOTAL LINES</span><span id="total-lines">0</span></div>
+        </div>
+        <div class="picker" id="difficulty-picker" role="radiogroup" aria-label="Difficulty">
+          <span class="label">DIFFICULTY</span>
+          <div class="seg">
+            <button type="button" data-difficulty="easy"   role="radio">EASY</button>
+            <button type="button" data-difficulty="normal" role="radio" aria-checked="true" class="on">NORMAL</button>
+            <button type="button" data-difficulty="hard"   role="radio">HARD</button>
+          </div>
+        </div>
+        <div class="picker">
+          <span class="label">START LEVEL</span>
+          <div class="stepper">
+            <button type="button" id="start-level-down" aria-label="Decrease start level">−</button>
+            <span id="start-level">1</span>
+            <button type="button" id="start-level-up" aria-label="Increase start level">+</button>
+          </div>
         </div>
         <div class="settings">
           <label><input type="checkbox" id="sound-toggle" checked> Sound</label>
