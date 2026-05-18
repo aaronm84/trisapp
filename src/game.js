@@ -58,6 +58,27 @@
     '#fb923c', '#f87171', '#c084fc', '#e879f9',
   ];
 
+  // Per-level recolor of the 7 pieces. Each piece stays distinct within a
+  // theme; themes shift the overall mood. Cycles by (level - 1) % length.
+  const LEVEL_PIECE_THEMES = [
+    // 0 - Aurora (default)
+    { I: '#22d3ee', O: '#facc15', T: '#c084fc', S: '#34d399', Z: '#f87171', J: '#60a5fa', L: '#fb923c' },
+    // 1 - Mint
+    { I: '#5eead4', O: '#bef264', T: '#a78bfa', S: '#4ade80', Z: '#fb7185', J: '#38bdf8', L: '#fbbf24' },
+    // 2 - Berry
+    { I: '#f0abfc', O: '#fde047', T: '#d946ef', S: '#86efac', Z: '#fda4af', J: '#a78bfa', L: '#fdba74' },
+    // 3 - Sunset
+    { I: '#fed7aa', O: '#fbbf24', T: '#f472b6', S: '#fde047', Z: '#fb7185', J: '#c084fc', L: '#fb923c' },
+    // 4 - Ocean
+    { I: '#22d3ee', O: '#bef264', T: '#a5b4fc', S: '#06b6d4', Z: '#f43f5e', J: '#3b82f6', L: '#14b8a6' },
+    // 5 - Forest
+    { I: '#86efac', O: '#fcd34d', T: '#c4b5fd', S: '#22c55e', Z: '#f87171', J: '#22d3ee', L: '#f97316' },
+    // 6 - Neon
+    { I: '#06b6d4', O: '#facc15', T: '#d946ef', S: '#10b981', Z: '#ef4444', J: '#3b82f6', L: '#f97316' },
+    // 7 - Pastel
+    { I: '#a5f3fc', O: '#fef08a', T: '#d8b4fe', S: '#a7f3d0', Z: '#fda4af', J: '#bfdbfe', L: '#fed7aa' },
+  ];
+
   // localStorage keys
   const LS = {
     sound: 'trisapp-sound',
@@ -114,6 +135,11 @@
 
   function applyLevelColor() {
     document.documentElement.style.setProperty('--level-color', levelColor(state.level));
+  }
+
+  function pieceColor(type) {
+    const theme = LEVEL_PIECE_THEMES[(state.level - 1) % LEVEL_PIECE_THEMES.length];
+    return (theme && theme[type]) || PIECES[type].color;
   }
 
   function makeBoard() {
@@ -258,6 +284,10 @@
       }
     }
     clearLines();
+    if (state.status === 'levelup') {
+      // Board reset + next spawn happen on CONTINUE, not here.
+      return;
+    }
     if (touchedTop && everyLockedBlockAboveBoard()) {
       // Locked entirely in hidden rows = top-out
       gameOver();
@@ -460,7 +490,7 @@
         if (flashing && state.flashRows.includes(y)) {
           drawCell(boardCtx, x, y - SPAWN_ROWS, '#ffffff', cellSize);
         } else {
-          drawCell(boardCtx, x, y - SPAWN_ROWS, PIECES[t].color, cellSize);
+          drawCell(boardCtx, x, y - SPAWN_ROWS, pieceColor(t), cellSize);
         }
       }
     }
@@ -468,12 +498,13 @@
     if (state.pieceType && (state.status === 'playing' || state.status === 'paused')) {
       const s = currentShape();
       const gy = ghostY();
+      const color = pieceColor(state.pieceType);
       // ghost
       for (let py = 0; py < s.length; py++) {
         for (let px = 0; px < s[py].length; px++) {
           if (!s[py][px]) continue;
           const ry = gy + py - SPAWN_ROWS;
-          if (ry >= 0) drawCell(boardCtx, state.pieceX + px, ry, PIECES[state.pieceType].color, cellSize, 0.22);
+          if (ry >= 0) drawCell(boardCtx, state.pieceX + px, ry, color, cellSize, 0.22);
         }
       }
       // live piece
@@ -481,7 +512,7 @@
         for (let px = 0; px < s[py].length; px++) {
           if (!s[py][px]) continue;
           const ry = state.pieceY + py - SPAWN_ROWS;
-          if (ry >= 0) drawCell(boardCtx, state.pieceX + px, ry, PIECES[state.pieceType].color, cellSize);
+          if (ry >= 0) drawCell(boardCtx, state.pieceX + px, ry, color, cellSize);
         }
       }
     }
@@ -491,6 +522,7 @@
     if (!type) return;
     const piece = PIECES[type];
     const shape = piece.shape;
+    const color = pieceColor(type);
     const pad = 4;
     const cell = Math.floor(Math.min((rw - pad) / shape[0].length, (rh - pad) / shape.length));
     if (cell < 2) return;
@@ -504,7 +536,7 @@
         if (!shape[py][px]) continue;
         const cx = ox + px * cell;
         const cy = oy + py * cell;
-        ctx.fillStyle = piece.color;
+        ctx.fillStyle = color;
         ctx.fillRect(cx, cy, cell, cell);
         ctx.fillStyle = 'rgba(255,255,255,0.22)';
         ctx.fillRect(cx, cy, cell, edge);
@@ -788,8 +820,15 @@
 
   function continueLevel() {
     if (state.status !== 'levelup') return;
-    state.status = 'playing';
+    state.board = makeBoard();
+    state.lockTimer = 0;
+    state.lockMoves = 0;
+    state.gravityTimer = 0;
+    state.softDrop = false;
+    state.flashRows = null;
     state.lastFrame = 0;
+    state.status = 'playing';
+    nextPiece();
     hideOverlay();
   }
 
