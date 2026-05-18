@@ -38,7 +38,11 @@
   const DAS_INITIAL_MS = 170; // delayed auto-shift: hold before repeat begins
   const DAS_REPEAT_MS = 45;
   const MAX_START_LEVEL = 10;
-  const LINES_PER_LEVEL = 10;
+  // Goal lines needed to advance a level. Scales with the level so later
+  // stages take longer despite the faster gravity. Level 1 = 20, +5 per level.
+  function linesPerLevel(level) {
+    return 20 + (level - 1) * 5;
+  }
 
   // Per-difficulty gravity curve. base = ms/drop at level 1, factor = exponential
   // decay base. Computed as max(50, pow(factor - (lvl-1)*0.007, lvl-1) * base).
@@ -292,8 +296,9 @@
     state.score += Math.round((SCORE_TABLE[fullRows.length] || 1200) * state.level * mul);
     playSound('lineclear', fullRows.length);
     vibrate(fullRows.length === 4 ? 30 : 12);
-    if (state.linesInLevel >= LINES_PER_LEVEL) {
-      state.linesInLevel -= LINES_PER_LEVEL;
+    const goal = linesPerLevel(state.level);
+    if (state.linesInLevel >= goal) {
+      state.linesInLevel -= goal;
       state.level += 1;
       state.gravity = gravityFor(state.level, state.difficulty);
       applyLevelColor();
@@ -528,8 +533,9 @@
   function updateStats() {
     document.getElementById('score').textContent = state.score;
     document.getElementById('level').textContent = state.level;
-    document.getElementById('goal').textContent = state.linesInLevel + '/' + LINES_PER_LEVEL;
-    const pct = Math.min(100, (state.linesInLevel / LINES_PER_LEVEL) * 100);
+    const goal = linesPerLevel(state.level);
+    document.getElementById('goal').textContent = state.linesInLevel + '/' + goal;
+    const pct = Math.min(100, (state.linesInLevel / goal) * 100);
     document.getElementById('level-progress-fill').style.width = pct + '%';
   }
 
@@ -774,7 +780,7 @@
     vibrate(20);
     showOverlay({
       title: 'LEVEL ' + state.level,
-      message: '+' + scoreGain + ' · Next ' + LINES_PER_LEVEL + ' lines',
+      message: '+' + scoreGain + ' · Next ' + linesPerLevel(state.level) + ' lines',
       action: 'CONTINUE',
       showPickers: false,
     });
