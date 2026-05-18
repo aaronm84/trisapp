@@ -24,14 +24,17 @@
 <body>
   <div id="app">
     <header id="status">
-      <canvas id="hold" width="56" height="36" title="Hold (tap to swap)" data-key="hold" role="button" aria-label="Hold"></canvas>
-      <div class="stats">
-        <div class="stat"><span class="label">SCORE</span><span id="score">0</span></div>
-        <div class="stat"><span class="label">LV</span><span id="level">1</span></div>
-        <div class="stat"><span class="label">LN</span><span id="lines">0</span></div>
+      <div class="status-row">
+        <canvas id="hold" width="56" height="36" title="Hold (tap to swap)" data-key="hold" role="button" aria-label="Hold"></canvas>
+        <div class="stats">
+          <div class="stat"><span class="label">SCORE</span><span id="score">0</span></div>
+          <div class="stat"><span class="label">LV</span><span id="level">1</span></div>
+          <div class="stat"><span class="label">GOAL</span><span id="goal">0/10</span></div>
+        </div>
+        <canvas id="next" width="132" height="36" title="Next"></canvas>
+        <button id="menu-btn" type="button" aria-label="Menu">☰</button>
       </div>
-      <canvas id="next" width="132" height="36" title="Next"></canvas>
-      <button id="menu-btn" type="button" aria-label="Menu">☰</button>
+      <div id="level-progress" aria-hidden="true"><div id="level-progress-fill"></div></div>
     </header>
 
     <main id="play">

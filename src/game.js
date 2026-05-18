@@ -38,6 +38,7 @@
   const DAS_INITIAL_MS = 170; // delayed auto-shift: hold before repeat begins
   const DAS_REPEAT_MS = 45;
   const MAX_START_LEVEL = 10;
+  const LINES_PER_LEVEL = 10;
 
   // Per-difficulty gravity curve. base = ms/drop at level 1, factor = exponential
   // decay base. Computed as max(50, pow(factor - (lvl-1)*0.007, lvl-1) * base).
@@ -79,7 +80,9 @@
     score: 0,
     level: 1,
     lines: 0,
-    status: 'menu', // 'menu' | 'playing' | 'paused' | 'gameover'
+    linesInLevel: 0,
+    scoreAtLevelStart: 0,
+    status: 'menu', // 'menu' | 'playing' | 'paused' | 'levelup' | 'gameover'
     gravity: DIFFICULTIES.normal.base,
     gravityTimer: 0,
     lockTimer: 0,
@@ -284,16 +287,18 @@
       state.board.unshift(Array(COLS).fill(null));
     }
     state.lines += fullRows.length;
+    state.linesInLevel += fullRows.length;
     const mul = (DIFFICULTIES[state.difficulty] || DIFFICULTIES.normal).scoreMul;
     state.score += Math.round((SCORE_TABLE[fullRows.length] || 1200) * state.level * mul);
-    const newLevel = state.startLevel + Math.floor(state.lines / 10);
-    if (newLevel > state.level) {
-      state.level = newLevel;
-      state.gravity = gravityFor(state.level, state.difficulty);
-      applyLevelColor();
-    }
     playSound('lineclear', fullRows.length);
     vibrate(fullRows.length === 4 ? 30 : 12);
+    if (state.linesInLevel >= LINES_PER_LEVEL) {
+      state.linesInLevel -= LINES_PER_LEVEL;
+      state.level += 1;
+      state.gravity = gravityFor(state.level, state.difficulty);
+      applyLevelColor();
+      levelUp();
+    }
   }
 
   function holdPiece() {
@@ -346,6 +351,14 @@
         tone(base, 0.10, 'triangle');
         setTimeout(() => tone(base * 1.5, 0.12, 'triangle'), 80);
         if (n >= 4) setTimeout(() => tone(base * 2, 0.16, 'triangle'), 180);
+        break;
+      }
+      case 'levelup': {
+        // Ascending major-ish arpeggio.
+        tone(523, 0.08, 'triangle', 0.10);
+        setTimeout(() => tone(659, 0.08, 'triangle', 0.10), 90);
+        setTimeout(() => tone(784, 0.10, 'triangle', 0.10), 180);
+        setTimeout(() => tone(1046, 0.14, 'triangle', 0.10), 280);
         break;
       }
       case 'gameover': {
@@ -515,7 +528,9 @@
   function updateStats() {
     document.getElementById('score').textContent = state.score;
     document.getElementById('level').textContent = state.level;
-    document.getElementById('lines').textContent = state.lines;
+    document.getElementById('goal').textContent = state.linesInLevel + '/' + LINES_PER_LEVEL;
+    const pct = Math.min(100, (state.linesInLevel / LINES_PER_LEVEL) * 100);
+    document.getElementById('level-progress-fill').style.width = pct + '%';
   }
 
   // -------- main loop --------
@@ -589,6 +604,11 @@
     }
     if (state.status === 'paused') {
       if (action === 'pause') resume();
+      return;
+    }
+    if (state.status === 'levelup') {
+      // Any action button (or pause) dismisses the transition.
+      if (action === 'hard-drop' || action === 'rotate-cw' || action === 'rotate-ccw' || action === 'pause') continueLevel();
       return;
     }
     switch (action) {
@@ -696,6 +716,8 @@
     state.score = 0;
     state.level = state.startLevel;
     state.lines = 0;
+    state.linesInLevel = 0;
+    state.scoreAtLevelStart = 0;
     state.gravity = gravityFor(state.level, state.difficulty);
     state.gravityTimer = 0;
     state.lockTimer = 0;
@@ -742,6 +764,27 @@
       action: 'PLAY AGAIN',
       showStats: true,
     });
+  }
+
+  function levelUp() {
+    state.status = 'levelup';
+    const scoreGain = state.score - state.scoreAtLevelStart;
+    state.scoreAtLevelStart = state.score;
+    playSound('levelup');
+    vibrate(20);
+    showOverlay({
+      title: 'LEVEL ' + state.level,
+      message: '+' + scoreGain + ' · Next ' + LINES_PER_LEVEL + ' lines',
+      action: 'CONTINUE',
+      showPickers: false,
+    });
+  }
+
+  function continueLevel() {
+    if (state.status !== 'levelup') return;
+    state.status = 'playing';
+    state.lastFrame = 0;
+    hideOverlay();
   }
 
   function saveProgress() {
@@ -831,6 +874,7 @@
     document.getElementById('start-level-up').addEventListener('click', () => setStartLevel(state.startLevel + 1));
     actionEl.addEventListener('click', () => {
       if (state.status === 'paused') resume();
+      else if (state.status === 'levelup') continueLevel();
       else start();
     });
     document.getElementById('menu-btn').addEventListener('click', () => {
