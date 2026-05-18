@@ -322,6 +322,21 @@ footer#controls {
   transition: background 200ms ease;
 }
 #overlay-action:active { transform: scale(0.98); filter: brightness(0.9); }
+#overlay-secondary {
+  background: transparent;
+  color: var(--dim);
+  border: none;
+  margin-top: 8px;
+  padding: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 8px;
+}
+#overlay-secondary:active { color: var(--text); background: var(--bg); }
+#overlay-secondary.hidden { display: none; }
 
 /* ---------- landscape: stack controls on sides of board ---------- */
 @media (orientation: landscape) and (max-height: 500px) {

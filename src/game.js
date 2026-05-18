@@ -740,6 +740,13 @@
     const newBestEl = document.getElementById('new-best');
     if (state.isNewBest && opts.showStats) newBestEl.classList.remove('hidden');
     else newBestEl.classList.add('hidden');
+    const secEl = document.getElementById('overlay-secondary');
+    if (opts.secondary) {
+      secEl.textContent = opts.secondary;
+      secEl.classList.remove('hidden');
+    } else {
+      secEl.classList.add('hidden');
+    }
     overlayEl.classList.remove('hidden');
     overlayEl.setAttribute('aria-hidden', 'false');
   }
@@ -780,7 +787,13 @@
   function pause() {
     if (state.status !== 'playing') return;
     state.status = 'paused';
-    showOverlay({ title: 'PAUSED', message: 'Take a breath.', action: 'RESUME', showPickers: false });
+    renderBestStats();
+    showOverlay({
+      title: 'PAUSED',
+      message: 'Adjust anything, then resume — or restart with new settings.',
+      action: 'RESUME',
+      secondary: 'RESTART',
+    });
   }
 
   function resume() {
@@ -921,6 +934,9 @@
       if (state.status === 'paused') resume();
       else if (state.status === 'levelup') continueLevel();
       else start();
+    });
+    document.getElementById('overlay-secondary').addEventListener('click', () => {
+      if (state.status === 'paused') start();
     });
     document.getElementById('menu-btn').addEventListener('click', () => {
       if (state.status === 'playing') pause();
